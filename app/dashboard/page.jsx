@@ -19,6 +19,7 @@ import {
 import Admins from "../components/Admins";
 import Brands from "../components/Brands";
 import Collections from "../components/Collections";
+import Products from "../components/Products";
 
 const navItems = [
   { id: "home", label: "Home", icon: Home },
@@ -113,7 +114,7 @@ export default function DashboardPage() {
           <div className="p-8 max-w-7xl mx-auto">
             {activeTab === "home" && <HomeContent />}
             {activeTab === "admins" && <Admins/>}
-            {activeTab === "products" && <Placeholder title="Products" description="Add, edit, and organize your pen inventory." />}
+            {activeTab === "products" && <Products/>}
             {activeTab === "collections" && <Collections/>}
             {activeTab === "brands" &&<Brands />}
           </div>
