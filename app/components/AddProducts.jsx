@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-const brandOptions = ["Montblanc", "Pelikan", "Lamy", "Parker", "Waterman", "Pilot", "Visconti"];
+
 const collectionOptions = ["Fountain Pen Flagships", "Executive Ballpoints", "Vintage Treasures", "Limited Edition 2026", "Daily Writers"];
 
 export default function AddProduct({ onNavigateToAll, onAddProduct }) {
@@ -9,7 +9,9 @@ export default function AddProduct({ onNavigateToAll, onAddProduct }) {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [discountedPrice, setDiscountedPrice] = useState("");
-  const [brand, setBrand] = useState(brandOptions[0]);
+const [brand, setBrand] = useState("");
+const [brands, setBrands] = useState([]);
+const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [collection, setCollection] = useState(collectionOptions[0]);
   const [condition, setCondition] = useState("fresh"); // 'fresh' | 'sale' | 'preowned'
   const [color, setColor] = useState("");
@@ -72,15 +74,19 @@ export default function AddProduct({ onNavigateToAll, onAddProduct }) {
   };
 
   // FormData Submission Handler
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!name.trim() || !price || !mainImageFile) return;
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
+  if (!name.trim() || !price || !mainImageFile) {
+    return;
+  }
+
+  try {
     setIsSubmitting(true);
 
-    // Create FormData for backend API call
     const formData = new FormData();
-    formData.append("name", name);
+
+    formData.append("name", name.trim());
     formData.append("description", description);
     formData.append("price", price);
     formData.append("discountedPrice", discountedPrice);
@@ -88,47 +94,131 @@ export default function AddProduct({ onNavigateToAll, onAddProduct }) {
     formData.append("collection", collection);
     formData.append("condition", condition);
     formData.append("color", color);
-    formData.append("stock", stock);
-    formData.append("highlights", JSON.stringify(highlights));
+    formData.append("stock", stock || "0");
 
-    // Append single main image file
-    formData.append("mainImage", mainImageFile);
+    formData.append(
+      "highlights",
+      JSON.stringify(highlights)
+    );
 
-    // Append multiple gallery image files
-    otherImageFiles.forEach((file, index) => {
-      formData.append(`otherImages_${index}`, file);
+    // Main image
+    formData.append(
+      "mainImage",
+      mainImageFile
+    );
+
+    // Gallery images
+    otherImageFiles.forEach((file) => {
+      formData.append(
+        "otherImages",
+        file
+      );
     });
 
-    // Console log FormData entries for verification
-    console.log("--- FormData Payload Created ---");
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}:`, value);
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/products`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Failed to create product"
+      );
     }
 
-    // Pass created product object to parent state
-    const newProduct = {
-      id: `prod-${Date.now()}`,
-      name,
-      description,
-      price,
-      discountedPrice,
-      brand,
-      collection,
-      condition,
-      color,
-      highlights,
-      stock: stock || "0",
-      mainImage: mainImagePreview,
-      otherImages: otherImagePreviews,
-    };
+    console.log(
+      "Product created:",
+      data.product
+    );
 
-    setTimeout(() => {
-      onAddProduct(newProduct);
-      setIsSubmitting(false);
-      onNavigateToAll();
-    }, 500);
+    // Reset form
+    setName("");
+    setDescription("");
+    setPrice("");
+    setDiscountedPrice("");
+   setBrand("");
+    setCollection(collectionOptions[0]);
+    setCondition("fresh");
+    setColor("");
+    setStock("");
+
+    setHighlights([]);
+    setHighlightInput("");
+
+    setMainImageFile(null);
+    setMainImagePreview(null);
+
+    setOtherImageFiles([]);
+    setOtherImagePreviews([]);
+
+    // Notify parent if you're still using it
+    if (onAddProduct) {
+      onAddProduct(data.product);
+    }
+
+    // Navigate to product list
+    onNavigateToAll();
+
+  } catch (error) {
+    console.error(
+      "Create product error:",
+      error
+    );
+
+    alert(
+      error.message ||
+        "Failed to create product"
+    );
+
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+useEffect(() => {
+  const fetchBrands = async () => {
+    try {
+      setIsLoadingBrands(true);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/brands`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch brands"
+        );
+      }
+
+      const fetchedBrands = data.brands || [];
+      
+      setBrands(fetchedBrands);
+
+      // Automatically select first brand
+      if (fetchedBrands.length > 0) {
+        setBrand(fetchedBrands[0].id);
+      }
+
+    } catch (error) {
+      console.error("Fetch brands error:", error);
+
+      alert(
+        error.message || "Failed to load brands"
+      );
+
+    } finally {
+      setIsLoadingBrands(false);
+    }
   };
 
+  fetchBrands();
+}, []);
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Top Header Navigation */}
@@ -301,15 +391,37 @@ export default function AddProduct({ onNavigateToAll, onAddProduct }) {
             {/* Brand Dropdown */}
             <div>
               <label className="block text-xs text-white/60 mb-1">Brand Dropdown</label>
-              <select
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#18181b] border border-white/10 text-sm text-white focus:outline-none"
-              >
-                {brandOptions.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
+           <select
+  value={brand}
+  onChange={(e) => setBrand(e.target.value)}
+  disabled={isLoadingBrands || brands.length === 0}
+  className="w-full px-4 py-2.5 rounded-xl bg-[#18181b] border border-white/10 text-sm text-white focus:outline-none disabled:opacity-50"
+>
+  {isLoadingBrands ? (
+    <option value="">
+      Loading brands...
+    </option>
+  ) : brands.length === 0 ? (
+    <option value="">
+      No brands available
+    </option>
+  ) : (
+    <>
+      <option value="">
+        Select a brand
+      </option>
+
+      {brands.map((brandItem) => (
+        <option
+          key={brandItem.id}
+          value={brandItem.id}
+        >
+          {brandItem.name}
+        </option>
+      ))}
+    </>
+  )}
+</select>
             </div>
 
             {/* Collection Dropdown */}

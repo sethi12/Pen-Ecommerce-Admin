@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState ,useEffect} from "react";
 import {
   Mail,
   Lock,
@@ -34,63 +34,128 @@ const roleConfig = {
   },
 };
 
-const initialAdmins = [
-  {
-    id: "1",
-    email: "owner@penzone.in",
-    role: "owner",
-    createdAt: "2026-07-12",
-  },
-  {
-    id: "2",
-    email: "editor@penzone.in",
-    role: "editor",
-    createdAt: "2026-07-28",
-  },
-  {
-    id: "3",
-    email: "viewer@penzone.in",
-    role: "viewer",
-    createdAt: "2026-08-02",
-  },
-];
+
 
 export default function Admins() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("viewer");
-  const [admins, setAdmins] = useState(initialAdmins);
+ const [admins, setAdmins] = useState([]);
+ const [isLoadingAdmins, setIsLoadingAdmins] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justAdded, setJustAdded] = useState(null);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
+  if (!email.trim() || !password.trim()) return;
+
+  try {
     setIsSubmitting(true);
 
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admins`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          role,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to add admin");
+    }
+
+    const newAdmin = data.admin;
+
+    // Add the admin returned by Firestore
+    setAdmins((prev) => [newAdmin, ...prev]);
+
+    // Show "New" indicator
+    setJustAdded(newAdmin.id);
+
+    // Reset form
+    setEmail("");
+    setPassword("");
+    setRole("viewer");
+
     setTimeout(() => {
-      const newAdmin = {
-        id: Date.now().toString(),
-        email: email.trim().toLowerCase(),
-        role,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
+      setJustAdded(null);
+    }, 2000);
+  } catch (error) {
+    console.error("Add admin error:", error);
 
-      setAdmins((prev) => [newAdmin, ...prev]);
-      setJustAdded(newAdmin.id);
-      setEmail("");
-      setPassword("");
-      setRole("viewer");
-      setIsSubmitting(false);
+    alert(error.message || "Failed to add admin");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+useEffect(() => {
+  const fetchAdmins = async () => {
+    try {
+      setIsLoadingAdmins(true);
 
-      setTimeout(() => setJustAdded(null), 2000);
-    }, 400);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admins`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch admins"
+        );
+      }
+
+      setAdmins(data.admins || []);
+
+    } catch (error) {
+      console.error("Fetch admins error:", error);
+
+      alert(
+        error.message || "Failed to load admins"
+      );
+
+    } finally {
+      setIsLoadingAdmins(false);
+    }
   };
 
-  const removeAdmin = (id) => {
-    setAdmins((prev) => prev.filter((a) => a.id !== id));
-  };
+  fetchAdmins();
+}, []);
+
+const removeAdmin = async (id) => {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admins/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to delete admin");
+    }
+
+    // Remove from UI only after successful database deletion
+    setAdmins((prev) => prev.filter((admin) => admin.id !== id));
+
+  } catch (error) {
+    console.error("Delete admin error:", error);
+
+    alert(error.message || "Failed to delete admin");
+  }
+};
 
   return (
     <div className="space-y-8">
@@ -281,95 +346,168 @@ export default function Admins() {
         </div>
 
         {/* ───────── Admins List ───────── */}
-        <div className="xl:col-span-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
-            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-white/80 tracking-wide">
-                  Team Members
-                </h3>
-                <p className="text-xs text-white/35 mt-0.5">
-                  {admins.length} admin{admins.length !== 1 ? "s" : ""} registered
-                </p>
-              </div>
-            </div>
+<div className="xl:col-span-3">
+  <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
 
-            <div className="divide-y divide-white/5">
-              {admins.length === 0 ? (
-                <div className="px-6 py-16 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
-                    <Shield className="w-5 h-5 text-white/30" />
-                  </div>
-                  <p className="text-sm text-white/40">No admins yet</p>
-                  <p className="text-xs text-white/25 mt-1">
-                    Add your first team member
-                  </p>
-                </div>
-              ) : (
-                admins.map((admin) => {
-                  const cfg = roleConfig[admin.role];
-                  const Icon = cfg.icon;
-                  const isNew = justAdded === admin.id;
+    {/* Header */}
+    <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
+      <div>
+        <h3 className="text-sm font-medium text-white/80 tracking-wide">
+          Team Members
+        </h3>
 
-                  return (
-                    <div
-                      key={admin.id}
-                      className={`
-                        px-6 py-4 flex items-center gap-4
-                        transition-all duration-500
-                        ${isNew ? "bg-[#b8935a]/10" : "hover:bg-white/[0.02]"}
-                      `}
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                        <span className="text-sm font-semibold text-white/70">
-                          {admin.email.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+        <p className="text-xs text-white/35 mt-0.5">
+          {admins.length} admin{admins.length !== 1 ? "s" : ""} registered
+        </p>
+      </div>
+    </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-white/90 truncate">
-                            {admin.email}
-                          </p>
-                          {isNew && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#d4b87a] bg-[#b8935a]/15 px-1.5 py-0.5 rounded">
-                              <CheckCircle2 className="w-3 h-3" />
-                              New
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-white/35 mt-0.5">
-                          Added {admin.createdAt}
-                        </p>
-                      </div>
 
-                      <div
-                        className={`
-                          hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border
-                          ${cfg.bg} ${cfg.color}
-                        `}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        {cfg.label}
-                      </div>
+    {/* Admin List */}
+    <div className="divide-y divide-white/5">
 
-                      <button
-                        onClick={() => removeAdmin(admin.id)}
-                        className="
-                          p-2 rounded-lg text-white/25 hover:text-red-400 hover:bg-red-500/10
-                          transition-all duration-300
-                        "
-                        title="Remove admin"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+      {admins.length === 0 ? (
+        <div className="px-6 py-16 text-center">
+
+          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-5 h-5 text-white/30" />
           </div>
+
+          <p className="text-sm text-white/40">
+            No admins yet
+          </p>
+
+          <p className="text-xs text-white/25 mt-1">
+            Add your first team member
+          </p>
+
         </div>
+      ) : (
+
+        admins.map((admin) => {
+
+          const cfg = roleConfig[admin.role];
+
+          // Safety fallback in case an unexpected role exists
+          if (!cfg) {
+            return null;
+          }
+
+          const Icon = cfg.icon;
+
+          const isNew = justAdded === admin.id;
+
+
+          return (
+            <div
+              key={admin.id}
+              className={`
+                px-6 py-4 flex items-center gap-4
+                transition-all duration-500
+                ${
+                  isNew
+                    ? "bg-[#b8935a]/10"
+                    : "hover:bg-white/[0.02]"
+                }
+              `}
+            >
+
+              {/* Avatar */}
+              <div
+                className="
+                  w-10 h-10 rounded-xl
+                  bg-gradient-to-br from-white/10 to-white/5
+                  border border-white/10
+                  flex items-center justify-center
+                  shrink-0
+                "
+              >
+                <span className="text-sm font-semibold text-white/70">
+                  {admin.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+
+
+              {/* Admin Information */}
+              <div className="flex-1 min-w-0">
+
+                <div className="flex items-center gap-2">
+
+                  <p className="text-sm font-medium text-white/90 truncate">
+                    {admin.email}
+                  </p>
+
+                  {isNew && (
+                    <span
+                      className="
+                        inline-flex items-center gap-1
+                        text-[10px] font-medium
+                        text-[#d4b87a]
+                        bg-[#b8935a]/15
+                        px-1.5 py-0.5
+                        rounded
+                      "
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      New
+                    </span>
+                  )}
+
+                </div>
+
+                <p className="text-xs text-white/35 mt-0.5">
+                  Added{" "}
+                  {admin.createdAt
+                    ? new Date(admin.createdAt).toLocaleDateString()
+                    : "Unknown"}
+                </p>
+
+              </div>
+
+
+              {/* Role */}
+              <div
+                className={`
+                  hidden sm:inline-flex
+                  items-center gap-1.5
+                  px-2.5 py-1
+                  rounded-lg
+                  text-xs font-medium
+                  border
+                  ${cfg.bg}
+                  ${cfg.color}
+                `}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {cfg.label}
+              </div>
+
+
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={() => removeAdmin(admin.id)}
+                className="
+                  p-2 rounded-lg
+                  text-white/25
+                  hover:text-red-400
+                  hover:bg-red-500/10
+                  transition-all duration-300
+                "
+                title="Remove admin"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+            </div>
+          );
+        })
+
+      )}
+
+    </div>
+  </div>
+</div>
       </div>
     </div>
   );

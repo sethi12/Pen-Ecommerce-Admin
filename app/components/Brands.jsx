@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState ,useEffect} from "react";
 import {
   Tag,
   Upload,
@@ -12,68 +12,178 @@ import {
   X,
 } from "lucide-react";
 
-const initialBrands = [
-  {
-    id: "1",
-    name: "Montblanc",
-    logo: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=150&auto=format&fit=crop&q=80",
-    createdAt: "2026-07-12",
-  },
-  
-  {
-    id: "2",
-    name: "Lamy",
-    logo: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=150&auto=format&fit=crop&q=80",
-    createdAt: "2026-08-02",
-  },
-];
 
 export default function Brands() {
   const [brandName, setBrandName] = useState("");
-  const [logoPreview, setLogoPreview] = useState(null);
-  const [brands, setBrands] = useState(initialBrands);
+const [logoFile, setLogoFile] = useState(null);
+const [logoPreview, setLogoPreview] = useState(null);
+ const [brands, setBrands] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justAdded, setJustAdded] = useState(null);
 
-  const handleLogoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+const handleLogoChange = (e) => {
+  const file = e.target.files?.[0];
+
+  if (!file) return;
+
+  // Validate size
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Image must be smaller than 5MB");
+    return;
+  }
+
+  // Validate type
+  const allowedTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/svg+xml",
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    alert("Only JPG, PNG, WEBP and SVG images are allowed");
+    return;
+  }
+
+  setLogoFile(file);
+
+  // Create preview
+  const reader = new FileReader();
+
+  reader.onloadend = () => {
+    setLogoPreview(reader.result);
+  };
+
+  reader.readAsDataURL(file);
+};
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!brandName.trim() || !logoFile) return;
+
+  try {
+    setIsSubmitting(true);
+
+    const formData = new FormData();
+
+    formData.append(
+      "name",
+      brandName.trim()
+    );
+
+    formData.append(
+      "logo",
+      logoFile
+    );
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/brands`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Failed to create brand"
+      );
+    }
+
+    const newBrand = data.brand;
+
+    // Add returned brand to UI
+    setBrands((prev) => [
+      newBrand,
+      ...prev,
+    ]);
+
+    setJustAdded(newBrand.id);
+
+    // Reset form
+    setBrandName("");
+    setLogoFile(null);
+    setLogoPreview(null);
+
+    // Clear New indicator
+    setTimeout(() => {
+      setJustAdded(null);
+    }, 2000);
+
+  } catch (error) {
+    console.error("Add brand error:", error);
+
+    alert(
+      error.message || "Failed to create brand"
+    );
+
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+const removeBrand = async (id) => {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/brands/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Failed to delete brand"
+      );
+    }
+
+    // Remove from UI only after successful deletion
+    setBrands((prev) =>
+      prev.filter((brand) => brand.id !== id)
+    );
+
+  } catch (error) {
+    console.error("Delete brand error:", error);
+
+    alert(
+      error.message || "Failed to delete brand"
+    );
+  }
+};
+useEffect(() => {
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/brands`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch brands"
+        );
+      }
+
+      setBrands(data.brands || []);
+
+    } catch (error) {
+      console.error("Fetch brands error:", error);
+
+      alert(
+        error.message || "Failed to load brands"
+      );
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!brandName.trim() || !logoPreview) return;
-
-    setIsSubmitting(true);
-
-    setTimeout(() => {
-      const newBrand = {
-        id: Date.now().toString(),
-        name: brandName.trim(),
-        logo: logoPreview,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-
-      setBrands((prev) => [newBrand, ...prev]);
-      setJustAdded(newBrand.id);
-      setBrandName("");
-      setLogoPreview(null);
-      setIsSubmitting(false);
-
-      setTimeout(() => setJustAdded(null), 2000);
-    }, 400);
-  };
-
-  const removeBrand = (id) => {
-    setBrands((prev) => prev.filter((b) => b.id !== id));
-  };
-
+  fetchBrands();
+}, []);
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -160,7 +270,10 @@ export default function Brands() {
 
                     <button
                       type="button"
-                      onClick={() => setLogoPreview(null)}
+                      onClick={() => {
+  setLogoPreview(null);
+  setLogoFile(null);
+}}
                       className="p-1.5 rounded-lg text-white/30 hover:text-white/80 hover:bg-white/10 transition-all duration-300"
                       title="Remove image"
                     >
