@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 import {
   FolderPlus,
   Package,
@@ -14,38 +17,23 @@ import {
   PenTool,
 } from "lucide-react";
 
-// Mock master product catalog
-const catalogProducts = [
-  { id: "p1", name: "Montblanc Meisterstück 149", category: "Fountain Pen" },
-  { id: "p2", name: "Pelikan Souverän M800", category: "Fountain Pen" },
-  { id: "p3", name: "Lamy 2000 Makrolon", category: "Fountain Pen" },
-  { id: "p4", name: "Parker 51 Premium", category: "Ballpoint Pen" },
-  { id: "p5", name: "Waterman Carène Glossy", category: "Rollerball Pen" },
-  { id: "p6", name: "Pilot Custom 823 Amber", category: "Fountain Pen" },
-  { id: "p7", name: "Visconti Homo Sapiens", category: "Fountain Pen" },
-  { id: "p8", name: "Cross Townsand Black Lacquer", category: "Ballpoint Pen" },
-];
 
-const initialCollections = [
-  {
-    id: "c1",
-    name: "Fountain Pen Flagships",
-    productIds: ["p1", "p2", "p3", "p6"],
-    createdAt: "2026-07-15",
-  },
-  {
-    id: "c2",
-    name: "Executive Ballpoints",
-    productIds: ["p4", "p8"],
-    createdAt: "2026-08-01",
-  },
-];
 
 export default function Collections() {
   const [collectionName, setCollectionName] = useState("");
   const [selectedFormProduct, setSelectedFormProduct] = useState("");
   const [formProducts, setFormProducts] = useState([]);
-  const [collections, setCollections] = useState(initialCollections);
+const [collections, setCollections] =
+  useState([]);
+
+const [products, setProducts] =
+  useState([]);
+
+const [isLoading, setIsLoading] =
+  useState(true);
+
+const [error, setError] =
+  useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justAdded, setJustAdded] = useState(null);
 
@@ -71,75 +59,313 @@ export default function Collections() {
   };
 
   // Create new collection
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!collectionName.trim()) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
+  if (!collectionName.trim()) {
+    return;
+  }
+
+  try {
     setIsSubmitting(true);
 
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/collections`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: collectionName.trim(),
+          productIds: formProducts,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          "Failed to create collection"
+      );
+    }
+
+    const newCollection =
+      data.collection;
+
+    setCollections((prev) => [
+      newCollection,
+      ...prev,
+    ]);
+
+    setJustAdded(newCollection.id);
+
+    setExpandedId(
+      newCollection.id
+    );
+
+    setCollectionName("");
+    setFormProducts([]);
+
     setTimeout(() => {
-      const newCollection = {
-        id: Date.now().toString(),
-        name: collectionName.trim(),
-        productIds: formProducts,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
+      setJustAdded(null);
+    }, 2000);
 
-      setCollections((prev) => [newCollection, ...prev]);
-      setJustAdded(newCollection.id);
-      setExpandedId(newCollection.id);
-      setCollectionName("");
-      setFormProducts([]);
-      setIsSubmitting(false);
+  } catch (error) {
+    console.error(
+      "Create collection error:",
+      error
+    );
 
-      setTimeout(() => setJustAdded(null), 2000);
-    }, 400);
-  };
+    alert(
+      error.message ||
+        "Failed to create collection"
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Delete an entire collection
-  const deleteCollection = (id) => {
-    setCollections((prev) => prev.filter((c) => c.id !== id));
-    if (expandedId === id) setExpandedId(null);
-  };
+const deleteCollection = async (id) => {
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this collection?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/collections/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          "Failed to delete collection"
+      );
+    }
+
+    setCollections((prev) =>
+      prev.filter(
+        (collection) =>
+          collection.id !== id
+      )
+    );
+
+    if (expandedId === id) {
+      setExpandedId(null);
+    }
+
+  } catch (error) {
+    console.error(
+      "Delete collection error:",
+      error
+    );
+
+    alert(
+      error.message ||
+        "Failed to delete collection"
+    );
+  }
+};
 
   // Remove a single product from an existing collection
-  const removeProductFromCollection = (collectionId, productId) => {
-    setCollections((prev) =>
-      prev.map((col) => {
-        if (col.id === collectionId) {
-          return {
-            ...col,
-            productIds: col.productIds.filter((id) => id !== productId),
-          };
+const removeProductFromCollection =
+  async (
+    collectionId,
+    productId
+  ) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/collections/${collectionId}/products/${productId}`,
+        {
+          method: "DELETE",
         }
-        return col;
-      })
-    );
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to remove product"
+        );
+      }
+
+      setCollections((prev) =>
+        prev.map((collection) => {
+          if (
+            collection.id ===
+            collectionId
+          ) {
+            return {
+              ...collection,
+              productIds:
+                data.productIds,
+            };
+          }
+
+          return collection;
+        })
+      );
+
+    } catch (error) {
+      console.error(
+        "Remove product from collection error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Failed to remove product"
+      );
+    }
   };
 
   // Add a product to an existing collection
-  const handleAddProductToExisting = (collectionId) => {
-    const productIdToAdd = addToExistingProductMap[collectionId];
+const handleAddProductToExisting =
+  async (collectionId) => {
+    const productIdToAdd =
+      addToExistingProductMap[
+        collectionId
+      ];
+
     if (!productIdToAdd) return;
 
-    setCollections((prev) =>
-      prev.map((col) => {
-        if (col.id === collectionId && !col.productIds.includes(productIdToAdd)) {
-          return {
-            ...col,
-            productIds: [...col.productIds, productIdToAdd],
-          };
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/collections/${collectionId}/products`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            productId:
+              productIdToAdd,
+          }),
         }
-        return col;
-      })
-    );
+      );
 
-    setAddToExistingProductMap((prev) => ({
-      ...prev,
-      [collectionId]: "",
-    }));
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to add product"
+        );
+      }
+
+      setCollections((prev) =>
+        prev.map((collection) => {
+          if (
+            collection.id ===
+            collectionId
+          ) {
+            return {
+              ...collection,
+              productIds:
+                data.productIds,
+            };
+          }
+
+          return collection;
+        })
+      );
+
+      setAddToExistingProductMap(
+        (prev) => ({
+          ...prev,
+          [collectionId]: "",
+        })
+      );
+
+    } catch (error) {
+      console.error(
+        "Add product to collection error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Failed to add product"
+      );
+    }
+  };
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const [
+        collectionsResponse,
+        productsResponse,
+      ] = await Promise.all([
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/collections`
+        ),
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/products`
+        ),
+      ]);
+
+      const collectionsData =
+        await collectionsResponse.json();
+
+      const productsData =
+        await productsResponse.json();
+
+      if (!collectionsResponse.ok) {
+        throw new Error(
+          collectionsData.message ||
+            "Failed to fetch collections"
+        );
+      }
+
+      if (!productsResponse.ok) {
+        throw new Error(
+          productsData.message ||
+            "Failed to fetch products"
+        );
+      }
+
+      setCollections(
+        collectionsData.collections || []
+      );
+
+      setProducts(
+        productsData.products || []
+      );
+
+    } catch (error) {
+      console.error(
+        "Fetch collections/products error:",
+        error
+      );
+
+      setError(
+        error.message ||
+          "Failed to load collections"
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  fetchData();
+}, []);
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -219,7 +445,7 @@ export default function Collections() {
                     <option value="" className="bg-[#121214] text-white/50">
                       Choose products to add...
                     </option>
-                    {catalogProducts.map((prod) => (
+                    {products.map((prod) => (
                       <option
                         key={prod.id}
                         value={prod.id}
@@ -239,7 +465,9 @@ export default function Collections() {
                 {formProducts.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-2">
                     {formProducts.map((pId) => {
-                      const prod = catalogProducts.find((p) => p.id === pId);
+                      const prod = products.find(
+  (p) => p.id === pId
+);
                       return (
                         <span
                           key={pId}
@@ -321,14 +549,23 @@ export default function Collections() {
                 collections.map((col) => {
                   const isExpanded = expandedId === col.id;
                   const isNew = justAdded === col.id;
-                  const assignedProducts = col.productIds
-                    .map((id) => catalogProducts.find((p) => p.id === id))
-                    .filter(Boolean);
+                 const assignedProducts =
+  col.productIds
+    .map((id) =>
+      products.find(
+        (p) => p.id === id
+      )
+    )
+    .filter(Boolean);
 
                   // Products NOT yet in this collection
-                  const unassignedProducts = catalogProducts.filter(
-                    (p) => !col.productIds.includes(p.id)
-                  );
+const unassignedProducts =
+  products.filter(
+    (p) =>
+      !col.productIds.includes(
+        p.id
+      )
+  );
 
                   return (
                     <div
@@ -480,7 +717,7 @@ export default function Collections() {
                                         {prod.name}
                                       </span>
                                       <span className="text-[10px] text-white/30 bg-white/5 px-2 py-0.5 rounded">
-                                        {prod.category}
+                                        {prod.collection}
                                       </span>
                                     </div>
 

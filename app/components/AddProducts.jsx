@@ -10,9 +10,13 @@ export default function AddProduct({ onNavigateToAll, onAddProduct }) {
   const [price, setPrice] = useState("");
   const [discountedPrice, setDiscountedPrice] = useState("");
 const [brand, setBrand] = useState("");
+
 const [brands, setBrands] = useState([]);
 const [isLoadingBrands, setIsLoadingBrands] = useState(true);
-  const [collection, setCollection] = useState(collectionOptions[0]);
+
+const [collection, setCollection] = useState("");
+const [collections, setCollections] = useState([]);
+const [isLoadingCollections, setIsLoadingCollections] = useState(true);
   const [condition, setCondition] = useState("fresh"); // 'fresh' | 'sale' | 'preowned'
   const [color, setColor] = useState("");
   const [stock, setStock] = useState("");
@@ -77,9 +81,15 @@ const [isLoadingBrands, setIsLoadingBrands] = useState(true);
  const handleSubmit = async (e) => {
   e.preventDefault();
 
-  if (!name.trim() || !price || !mainImageFile) {
-    return;
-  }
+if (
+  !name.trim() ||
+  !price ||
+  !mainImageFile ||
+  !brand ||
+  !collection
+) {
+  return;
+}
 
   try {
     setIsSubmitting(true);
@@ -141,8 +151,17 @@ const [isLoadingBrands, setIsLoadingBrands] = useState(true);
     setDescription("");
     setPrice("");
     setDiscountedPrice("");
-   setBrand("");
-    setCollection(collectionOptions[0]);
+  setBrand(
+  brands.length > 0
+    ? brands[0].id
+    : ""
+);
+
+setCollection(
+  collections.length > 0
+    ? collections[0].id
+    : ""
+);
     setCondition("fresh");
     setColor("");
     setStock("");
@@ -218,6 +237,50 @@ useEffect(() => {
   };
 
   fetchBrands();
+}, []);
+useEffect(() => {
+  const fetchCollections = async () => {
+    try {
+      setIsLoadingCollections(true);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/collections`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch collections"
+        );
+      }
+
+      const fetchedCollections =
+        data.collections || [];
+
+      setCollections(fetchedCollections);
+
+      // Automatically select first collection
+      if (fetchedCollections.length > 0) {
+        setCollection(fetchedCollections[0].id);
+      }
+
+    } catch (error) {
+      console.error(
+        "Fetch collections error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Failed to load collections"
+      );
+    } finally {
+      setIsLoadingCollections(false);
+    }
+  };
+
+  fetchCollections();
 }, []);
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -427,15 +490,49 @@ useEffect(() => {
             {/* Collection Dropdown */}
             <div>
               <label className="block text-xs text-white/60 mb-1">Collection Dropdown</label>
-              <select
-                value={collection}
-                onChange={(e) => setCollection(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#18181b] border border-white/10 text-sm text-white focus:outline-none"
-              >
-                {collectionOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+      <select
+  value={collection}
+  onChange={(e) =>
+    setCollection(e.target.value)
+  }
+  disabled={
+    isLoadingCollections ||
+    collections.length === 0
+  }
+  className="
+    w-full px-4 py-2.5 rounded-xl
+    bg-[#18181b]
+    border border-white/10
+    text-sm text-white
+    focus:outline-none
+    disabled:opacity-50
+  "
+>
+  {isLoadingCollections ? (
+    <option value="">
+      Loading collections...
+    </option>
+  ) : collections.length === 0 ? (
+    <option value="">
+      No collections available
+    </option>
+  ) : (
+    <>
+      <option value="">
+        Select a collection
+      </option>
+
+      {collections.map((collectionItem) => (
+        <option
+          key={collectionItem.id}
+          value={collectionItem.id}
+        >
+          {collectionItem.name}
+        </option>
+      ))}
+    </>
+  )}
+</select>
             </div>
 
             {/* Three Condition Radio Buttons */}

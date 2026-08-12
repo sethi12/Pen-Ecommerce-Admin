@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Trash2,
   Pencil,
@@ -27,54 +27,77 @@ export default function AllProducts({
     useState("all");
 
   const [currentPage, setCurrentPage] = useState(1);
-
+  const [brands, setBrands] = useState([]);
+  const [collections, setCollections] = useState([]);
   /*
    * --------------------------------------------------
    * UNIQUE BRANDS
    * --------------------------------------------------
    */
+  useEffect(() => {
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/brands`
+      );
 
-  const brands = useMemo(() => {
-    const uniqueBrands = new Map();
+      const data = await response.json();
 
-    products.forEach((product) => {
-      if (product.brand) {
-        uniqueBrands.set(
-          product.brand,
-          product.brand || "Unknown Brand"
-        );
-      } else if (product.brand) {
-        uniqueBrands.set(
-          product.brand,
-          product.brand
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch brands"
         );
       }
-    });
 
-    return Array.from(uniqueBrands.entries()).map(
-      ([id, name]) => ({
-        id,
-        name,
-      })
-    );
-  }, [products]);
+      setBrands(data.brands || []);
+    } catch (error) {
+      console.error("Fetch brands error:", error);
+    }
+  };
 
+  fetchBrands();
+}, []);
 
+useEffect(() => {
+  const fetchCollections = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/collections`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch collections"
+        );
+      }
+
+      setCollections(data.collections || []);
+    } catch (error) {
+      console.error(
+        "Fetch collections error:",
+        error
+      );
+    }
+  };
+
+  fetchCollections();
+}, []);
   /*
    * --------------------------------------------------
    * UNIQUE COLLECTIONS
    * --------------------------------------------------
    */
 
-  const collections = useMemo(() => {
-    return [
-      ...new Set(
-        products
-          .map((product) => product.collection)
-          .filter(Boolean)
-      ),
-    ];
-  }, [products]);
+const collectionMap = useMemo(() => {
+  return new Map(
+    collections.map((collection) => [
+      collection.id,
+      collection.name,
+    ])
+  );
+}, [collections]);
 
 
   /*
@@ -83,24 +106,23 @@ export default function AllProducts({
    * --------------------------------------------------
    */
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const brandMatches =
-        selectedBrand === "all" ||
-        product.brandId === selectedBrand ||
-        product.brandName === selectedBrand;
+const filteredProducts = useMemo(() => {
+  return products.filter((product) => {
+    const brandMatches =
+      selectedBrand === "all" ||
+      product.brand === selectedBrand;
 
-      const collectionMatches =
-        selectedCollection === "all" ||
-        product.collection === selectedCollection;
+    const collectionMatches =
+      selectedCollection === "all" ||
+      product.collection === selectedCollection;
 
-      return brandMatches && collectionMatches;
-    });
-  }, [
-    products,
-    selectedBrand,
-    selectedCollection,
-  ]);
+    return brandMatches && collectionMatches;
+  });
+}, [
+  products,
+  selectedBrand,
+  selectedCollection,
+]);
 
 
   /*
@@ -206,6 +228,14 @@ const handleDelete = async (e, productId) => {
     }
   };
 
+const brandMap = useMemo(() => {
+  return new Map(
+    brands.map((brand) => [
+      brand.id,
+      brand.name,
+    ])
+  );
+}, [brands]);
 
   /*
    * --------------------------------------------------
@@ -381,14 +411,14 @@ const handleDelete = async (e, productId) => {
             All Collections
           </option>
 
-          {collections.map((collection) => (
-            <option
-              key={collection}
-              value={collection}
-            >
-              {collection}
-            </option>
-          ))}
+{collections.map((collection) => (
+  <option
+    key={collection.id}
+    value={collection.id}
+  >
+    {collection.name}
+  </option>
+))}
         </select>
 
 
@@ -562,13 +592,14 @@ const handleDelete = async (e, productId) => {
 
                     <div className="flex flex-wrap gap-2 pt-1">
 
-                      <span className="bg-white/5 px-2 py-1 rounded border border-white/5 text-[11px] text-white/60">
-                        Brand:{" "}
-                        <strong className="text-white">
-                          {item.brandName ||
-                            "Unknown"}
-                        </strong>
-                      </span>
+    <span className="bg-white/5 px-2 py-1 rounded border border-white/5 text-[11px] text-white/60">
+  Brand:{" "}
+  <strong className="text-white">
+    {brands.find(
+      (brand) => brand.id === item.brand
+    )?.name || "Unknown"}
+  </strong>
+</span>
 
                       <span className="bg-white/5 px-2 py-1 rounded border border-white/5 text-[11px] text-white/60">
                         Collection:{" "}
@@ -1035,13 +1066,13 @@ const handleDelete = async (e, productId) => {
                     value={selectedProduct.id}
                   />
 
-                  <DetailItem
-                    label="Brand"
-                    value={
-                      selectedProduct.brandName ||
-                      "—"
-                    }
-                  />
+                <DetailItem
+  label="Brand"
+  value={
+    brandMap.get(selectedProduct.brand) ||
+    "—"
+  }
+/>
 
                   <DetailItem
                     label="Collection"
