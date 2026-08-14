@@ -14,7 +14,9 @@ import {
   Star,
   ArrowUpRight,
   Sparkles,
-  ListOrdered
+  ListOrdered,
+  Menu,
+  X
 } from "lucide-react";
 import Admins from "../components/Admins";
 import Brands from "../components/Brands";
@@ -32,6 +34,12 @@ const navItems = [
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("home");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleNavClick = (id) => {
+    setActiveTab(id);
+    setMobileMenuOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white overflow-hidden relative">
@@ -42,11 +50,47 @@ export default function DashboardPage() {
         <div className="absolute top-[40%] right-[20%] w-[25%] h-[25%] rounded-full bg-white/3 blur-[80px]" />
       </div>
 
-      <div className="relative z-10 flex h-screen">
-        {/* ───────── Left Sidebar ───────── */}
-        <aside className="w-64 shrink-0 flex flex-col border-r border-white/10 bg-white/[0.03] backdrop-blur-2xl">
-          {/* Logo */}
-          <div className="px-6 py-7 border-b border-white/10">
+      <div className="relative z-10 flex flex-col lg:flex-row h-screen">
+        {/* ───────── Mobile Header Bar ───────── */}
+        <div className="lg:hidden flex items-center justify-between border-b border-white/10 px-4 py-3.5 bg-[#0a0a0c]/80 backdrop-blur-xl shrink-0 z-30">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#b8935a] to-[#8a6d3d] flex items-center justify-center shadow-lg shadow-[#b8935a]/20">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold tracking-tight leading-tight">PenZone</h1>
+              <p className="text-[9px] text-white/40 tracking-widest uppercase">Admin</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/5 border border-white/10 transition-colors"
+            aria-label="Toggle Menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {/* ───────── Mobile Backdrop Overlay ───────── */}
+        {mobileMenuOpen && (
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          />
+        )}
+
+        {/* ───────── Left Sidebar (Responsive Drawer) ───────── */}
+        <aside
+          className={`
+            fixed top-0 bottom-0 left-0 z-50 w-64 flex flex-col border-r border-white/10 
+            bg-[#0d0d11] lg:bg-white/[0.03] backdrop-blur-2xl
+            transition-transform duration-300 ease-in-out
+            lg:translate-x-0 lg:static lg:z-auto
+            ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+          `}
+        >
+          {/* Sidebar Header / Logo */}
+          <div className="px-6 py-7 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#b8935a] to-[#8a6d3d] flex items-center justify-center shadow-lg shadow-[#b8935a]/20">
                 <Sparkles className="w-5 h-5 text-white" />
@@ -56,17 +100,24 @@ export default function DashboardPage() {
                 <p className="text-[11px] text-white/40 tracking-widest uppercase">Admin</p>
               </div>
             </div>
+            {/* Close icon inside drawer for mobile */}
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="lg:hidden text-white/40 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-6 space-y-1">
+          {/* Navigation Items */}
+          <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => handleNavClick(item.id)}
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
                     transition-all duration-300 group
@@ -91,11 +142,11 @@ export default function DashboardPage() {
             })}
           </nav>
 
-          {/* Logout */}
-          <div className="px-3 pb-6">
+          {/* Logout Button */}
+          <div className="px-3 pb-6 border-t border-white/5 pt-4">
             <button
               onClick={() => {
-                // Add your logout logic here
+                setMobileMenuOpen(false);
                 console.log("Logging out...");
               }}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
@@ -109,14 +160,20 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        {/* ───────── Right Content ───────── */}
+        {/* ───────── Right Content Area ───────── */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-8 max-w-7xl mx-auto">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             {activeTab === "home" && <HomeContent />}
-            {activeTab === "admins" && <Admins/>}
-            {activeTab === "products" && <Products/>}
-            {activeTab === "collections" && <Collections/>}
-            {activeTab === "brands" &&<Brands />}
+            {activeTab === "admins" && <Admins />}
+            {activeTab === "products" && <Products />}
+            {activeTab === "collections" && <Collections />}
+            {activeTab === "brands" && <Brands />}
+            {activeTab === "orders" && (
+              <Placeholder
+                title="Orders Management"
+                description="View, filter, and update customer fulfillment statuses."
+              />
+            )}
           </div>
         </main>
       </div>
@@ -169,18 +226,18 @@ function HomeContent() {
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-end justify-between">
+    <div className="space-y-6 sm:space-y-8">
+      {/* Responsive Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-white/40 mb-1 tracking-wide">Welcome back</p>
-          <h2 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+          <p className="text-xs sm:text-sm text-white/40 mb-1 tracking-wide">Welcome back</p>
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
             Dashboard Overview
           </h2>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-white/30 uppercase tracking-widest">Today</p>
-          <p className="text-sm text-white/60">
+        <div className="text-left sm:text-right">
+          <p className="text-[10px] sm:text-xs text-white/30 uppercase tracking-widest">Today</p>
+          <p className="text-xs sm:text-sm text-white/60">
             {new Date().toLocaleDateString("en-IN", {
               weekday: "long",
               day: "numeric",
@@ -191,8 +248,8 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      {/* Responsive Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -219,47 +276,47 @@ function HomeContent() {
                   </span>
                 </div>
                 <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
-                <p className="text-sm text-white/40 mt-1">{stat.label}</p>
+                <p className="text-xs sm:text-sm text-white/40 mt-1">{stat.label}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Two column section */}
+      {/* Two Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Featured / Hero card */}
-        <div className="lg:col-span-3 relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 min-h-[320px] flex flex-col justify-between">
+        {/* Featured Hero Card */}
+        <div className="lg:col-span-3 relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 sm:p-8 flex flex-col justify-between min-h-[280px] sm:min-h-[320px]">
           <div className="absolute inset-0 bg-gradient-to-br from-[#b8935a]/10 via-transparent to-transparent" />
           <div className="absolute right-0 top-0 w-64 h-64 bg-[#b8935a]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
 
           <div className="relative">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium tracking-widest uppercase text-[#d4b87a] bg-[#b8935a]/10 border border-[#b8935a]/20 px-3 py-1.5 rounded-full mb-5">
-              <Sparkles className="w-3.5 h-3.5" />
+            <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-medium tracking-widest uppercase text-[#d4b87a] bg-[#b8935a]/10 border border-[#b8935a]/20 px-3 py-1.5 rounded-full mb-4 sm:mb-5">
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Featured
             </span>
-            <h3 className="text-2xl font-semibold tracking-tight mb-3 max-w-md">
+            <h3 className="text-xl sm:text-2xl font-semibold tracking-tight mb-2 sm:mb-3 max-w-md">
               A pen that earns its ink.
             </h3>
-            <p className="text-white/50 text-sm leading-relaxed max-w-sm">
+            <p className="text-white/50 text-xs sm:text-sm leading-relaxed max-w-sm">
               Brass-weighted, hand-balanced, and built to outlast the notebooks it fills.
               Every barrel is turned, polished, and tested before it leaves the bench.
             </p>
           </div>
 
-          <div className="relative flex items-center gap-4 mt-8">
-            <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#b8935a] to-[#9a7a45] text-sm font-medium text-white shadow-lg shadow-[#b8935a]/25 hover:shadow-[#b8935a]/40 transition-shadow">
+          <div className="relative flex flex-wrap items-center gap-3 sm:gap-4 mt-6 sm:mt-8">
+            <button className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#b8935a] to-[#9a7a45] text-xs sm:text-sm font-medium text-white shadow-lg shadow-[#b8935a]/25 hover:shadow-[#b8935a]/40 transition-shadow">
               View Collection
             </button>
-            <button className="px-5 py-2.5 rounded-xl border border-white/15 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-all">
+            <button className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl border border-white/15 text-xs sm:text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-all">
               Craftsmanship
             </button>
           </div>
         </div>
 
-        {/* Quick stats / Activity */}
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 flex flex-col">
-          <h4 className="text-sm font-medium text-white/70 mb-5 tracking-wide">Top Performing</h4>
+        {/* Top Performing List */}
+        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 sm:p-6 flex flex-col">
+          <h4 className="text-xs sm:text-sm font-medium text-white/70 mb-4 sm:mb-5 tracking-wide">Top Performing</h4>
           <div className="space-y-4 flex-1">
             {[
               { name: "Obsidian Noir", sales: 342, pct: 92 },
@@ -268,7 +325,7 @@ function HomeContent() {
               { name: "Midnight Clip", sales: 156, pct: 51 },
             ].map((item) => (
               <div key={item.name}>
-                <div className="flex justify-between text-sm mb-1.5">
+                <div className="flex justify-between text-xs sm:text-sm mb-1.5">
                   <span className="text-white/80">{item.name}</span>
                   <span className="text-white/40">{item.sales}</span>
                 </div>
@@ -284,23 +341,23 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* Recent Orders */}
+      {/* Recent Orders Table */}
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
-          <h4 className="text-sm font-medium text-white/70 tracking-wide">Recent Orders</h4>
+        <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-white/10 flex items-center justify-between">
+          <h4 className="text-xs sm:text-sm font-medium text-white/70 tracking-wide">Recent Orders</h4>
           <button className="text-xs text-[#d4b87a] hover:text-[#e8d5b0] transition-colors">
             View all →
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs sm:text-sm min-w-[540px]">
             <thead>
-              <tr className="text-left text-white/30 text-xs uppercase tracking-wider">
-                <th className="px-6 py-3 font-medium">Order</th>
-                <th className="px-6 py-3 font-medium">Customer</th>
-                <th className="px-6 py-3 font-medium">Product</th>
-                <th className="px-6 py-3 font-medium">Amount</th>
-                <th className="px-6 py-3 font-medium">Status</th>
+              <tr className="text-left text-white/30 text-[10px] sm:text-xs uppercase tracking-wider">
+                <th className="px-5 sm:px-6 py-3 font-medium">Order</th>
+                <th className="px-5 sm:px-6 py-3 font-medium">Customer</th>
+                <th className="px-5 sm:px-6 py-3 font-medium">Product</th>
+                <th className="px-5 sm:px-6 py-3 font-medium">Amount</th>
+                <th className="px-5 sm:px-6 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -309,14 +366,14 @@ function HomeContent() {
                   key={order.id}
                   className="border-t border-white/5 hover:bg-white/[0.02] transition-colors"
                 >
-                  <td className="px-6 py-4 font-medium text-white/90">{order.id}</td>
-                  <td className="px-6 py-4 text-white/60">{order.customer}</td>
-                  <td className="px-6 py-4 text-white/60">{order.product}</td>
-                  <td className="px-6 py-4 text-white/90">{order.amount}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-5 sm:px-6 py-3.5 sm:py-4 font-medium text-white/90">{order.id}</td>
+                  <td className="px-5 sm:px-6 py-3.5 sm:py-4 text-white/60">{order.customer}</td>
+                  <td className="px-5 sm:px-6 py-3.5 sm:py-4 text-white/60">{order.product}</td>
+                  <td className="px-5 sm:px-6 py-3.5 sm:py-4 text-white/90">{order.amount}</td>
+                  <td className="px-5 sm:px-6 py-3.5 sm:py-4">
                     <span
                       className={`
-                        inline-flex px-2.5 py-1 rounded-lg text-xs font-medium
+                        inline-flex px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium
                         ${
                           order.status === "Delivered"
                             ? "bg-emerald-500/10 text-emerald-400"
@@ -339,16 +396,16 @@ function HomeContent() {
   );
 }
 
-/* ─────────────────── Placeholder for other tabs ─────────────────── */
+/* ─────────────────── Placeholder Component ─────────────────── */
 function Placeholder({ title, description }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
-        <Sparkles className="w-7 h-7 text-[#d4b87a]/60" />
+    <div className="flex flex-col items-center justify-center min-h-[50vh] sm:min-h-[60vh] text-center px-4">
+      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 sm:mb-6">
+        <Sparkles className="w-5 h-5 sm:w-7 sm:h-7 text-[#d4b87a]/60" />
       </div>
-      <h2 className="text-2xl font-semibold tracking-tight mb-2">{title}</h2>
-      <p className="text-white/40 max-w-md">{description}</p>
-      <p className="mt-6 text-xs text-white/25 tracking-widest uppercase">Coming soon</p>
+      <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mb-2">{title}</h2>
+      <p className="text-xs sm:text-sm text-white/40 max-w-md">{description}</p>
+      <p className="mt-4 sm:mt-6 text-[10px] sm:text-xs text-white/25 tracking-widest uppercase">Coming soon</p>
     </div>
   );
 }

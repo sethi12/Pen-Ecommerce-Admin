@@ -40,25 +40,60 @@ export default function LoginPage() {
   useEffect(() => setMounted(true), []);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
+  e.preventDefault();
 
-    try {
-      // Simulate authentication API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+  setIsLoading(true);
+  setError("");
 
-      if (email && password) {
-        router.push("/dashboard");
-      } else {
-        setError("Please enter valid admin credentials.");
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admins/login`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
       }
-    } catch (err) {
-      setError("An error occurred during sign in.");
-    } finally {
-      setIsLoading(false);
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Invalid email or password"
+      );
     }
-  };
+
+    console.log("Admin login successful:", data);
+
+    // Store the authentication token
+    localStorage.setItem("adminToken", data.token);
+
+    // Store basic admin information if returned
+    localStorage.setItem(
+      "admin",
+      JSON.stringify(data.admin)
+    );
+
+    // Redirect to dashboard
+    router.push("/dashboard");
+
+  } catch (error) {
+    console.error("Login error:", error);
+
+    setError(
+      error.message ||
+      "Invalid email or password. Please try again."
+    );
+
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   if (!mounted) return null;
 
