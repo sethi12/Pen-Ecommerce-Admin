@@ -22,6 +22,7 @@ import Admins from "../components/Admins";
 import Brands from "../components/Brands";
 import Collections from "../components/Collections";
 import Products from "../components/Products";
+import WholeSale from "../components/WholeSale";
 
 const navItems = [
   { id: "home", label: "Home", icon: Home },
@@ -29,6 +30,7 @@ const navItems = [
   { id: "products", label: "Products", icon: Package },
   { id: "collections", label: "Collections", icon: Layers },
   { id: "orders", label: "Orders", icon: ListOrdered },
+   { id: "wholesale", label: "WholeSale Enquiry", icon: Layers },
   { id: "brands", label: "Brands", icon: Award },
 ];
 
@@ -168,6 +170,7 @@ export default function DashboardPage() {
             {activeTab === "products" && <Products />}
             {activeTab === "collections" && <Collections />}
             {activeTab === "brands" && <Brands />}
+            {activeTab === "wholesale" && <WholeSale />}
             {activeTab === "orders" && (
               <Placeholder
                 title="Orders Management"
